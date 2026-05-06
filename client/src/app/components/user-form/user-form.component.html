@@ -1,0 +1,55 @@
+<div class="user-form-container" [ngClass]="{'edit-mode': isEditMode}">
+  <h2>{{ isEditMode ? 'Edit User Details' : 'Add New User' }}</h2>
+
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+    <input type="hidden" formControlName="id">
+
+    <div class="form-group">
+      <label for="name">Full Name</label>
+      <input
+        type="text"
+        id="name"
+        formControlName="name"
+        placeholder="Enter user's full name"
+        [ngClass]="{'invalid': userForm.get('name')?.invalid && userForm.get('name')?.touched}"
+        autocomplete="name"
+      />
+      <div class="error-message" *ngIf="userForm.get('name')?.invalid && userForm.get('name')?.touched">
+        Name is required
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input
+        type="email"
+        id="email"
+        formControlName="email"
+        placeholder="Enter user's email address"
+        [ngClass]="{'invalid': userForm.get('email')?.invalid && userForm.get('email')?.touched}"
+        autocomplete="email"
+      />
+      <div class="error-message" *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched">
+        {{ userForm.get('email')?.errors?.['required'] ? 'Email is required' : 'Please enter a valid email address' }}
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="userForm.invalid || submitting">
+        {{ submitting ? (isEditMode ? 'Saving...' : 'Creating...') : (isEditMode ? 'Save Changes' : 'Create User') }}
+      </button>
+
+      <button type="button" *ngIf="isEditMode" (click)="resetForm()" class="cancel-btn">
+        Cancel
+      </button>
+    </div>
+  </form>
+
+  <div *ngIf="success" class="success-message">
+    User successfully {{ isEditMode ? 'updated' : 'added' }}!
+  </div>
+
+  <div *ngIf="error" class="error-alert">
+    {{ error }}
+  </div>
+</div>

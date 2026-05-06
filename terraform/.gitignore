@@ -1,0 +1,15 @@
+# État Terraform (contient les IDs et infos sensibles de vos ressources)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Vos valeurs personnelles (IP, mot de passe DB, chemins clés)
+terraform.tfvars
+
+# Logs de crash
+crash.log
+crash.*.log
+
+# Plans sauvegardés
+*.tfplan

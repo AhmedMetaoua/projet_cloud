@@ -1,0 +1,19 @@
+<div class="app-container">
+  <header>
+    <h1>Angular Node MySQL App</h1>
+    <p>A simple user management system built with Angular, Node.js, and MySQL</p>
+  </header>
+
+  <main>
+    <app-user-list (editUser)="handleEditUser($event)"></app-user-list>
+    <app-user-form
+      [userToEdit]="userToEdit"
+      (userSaved)="handleUserSaved()"
+      (cancelEdit)="handleCancelEdit()">
+    </app-user-form>
+  </main>
+
+  <footer>
+    <p>By Ala Ben Hmida &copy; {{ currentYear }}</p>
+  </footer>
+</div>

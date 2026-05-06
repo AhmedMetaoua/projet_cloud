@@ -1,0 +1,43 @@
+<div class="user-list-container">
+  <h2>User List</h2>
+
+  <div *ngIf="loading" class="loading">Loading users...</div>
+
+  <div *ngIf="error" class="error">
+    {{ error }}
+  </div>
+
+  <div *ngIf="!loading && !error">
+    <table *ngIf="users.length > 0" class="users-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Created At</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users">
+          <td>{{ user.id }}</td>
+          <td>{{ user.name }}</td>
+          <td>{{ user.email }}</td>
+          <td>{{ user.created_at | date:'medium' }}</td>
+          <td class="actions">
+            <button class="edit-btn" (click)="onEdit(user)">Edit</button>
+            <button class="delete-btn" (click)="onDelete(user.id)" [disabled]="deleteLoading === user.id">
+              {{ deleteLoading === user.id ? 'Deleting...' : 'Delete' }}
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div *ngIf="users.length === 0" class="no-users">
+      No users found. Add a new user below.
+    </div>
+  </div>
+
+  <button class="refresh-btn" (click)="loadUsers()">Refresh Users</button>
+</div>
