@@ -15,6 +15,7 @@ git clone ${github_repo} app
 
 # ── Write .env file BEFORE npm install ──
 cat > /home/ubuntu/app/backend/.env <<EOF
+USE_JSON_STORAGE=false
 DB_HOST=${db_host}
 DB_NAME=${db_name}
 DB_USER=${db_username}

@@ -5,8 +5,8 @@ set -e
 apt-get update -y
 apt-get install -y nginx git curl
 
-# ── Install Node.js 18 ──
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+# ── Install Node.js 20 ──
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt-get install -y nodejs
 
 # ── Cloner votre frontend ──
