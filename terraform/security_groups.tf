@@ -63,15 +63,6 @@ resource "aws_security_group" "backend" {
     security_groups = [aws_security_group.alb.id]
   }
 
-  # ← TEMPORARY: remove this block after debugging
-  ingress {
-    description     = "SSH from frontend for debugging"
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.frontend.id]
-  }
-
   egress {
     from_port   = 0
     to_port     = 0

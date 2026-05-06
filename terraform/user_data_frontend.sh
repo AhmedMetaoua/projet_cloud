@@ -22,9 +22,13 @@ npx ng build --configuration production
 rm -rf /var/www/html/*
 cp -r /tmp/frontend-app/client/dist/client/browser/* /var/www/html/
 
-# ── Remplacer l'URL de l'API par le DNS de l'ALB ──
-find /var/www/html -name "*.js" -o -name "*.html" | xargs sed -i \
-  "s|http://localhost:${app_port}|http://${alb_dns_name}|g"
+# ── Créer un fichier de configuration JavaScript avec l'URL de l'ALB ──
+cat > /var/www/html/config.js <<EOF
+window.API_HOST = '${alb_dns_name}';
+EOF
+
+# ── Injecter le script de configuration dans le head de index.html ──
+sed -i '/<head>/a\  <script src="/config.js"><\/script>' /var/www/html/index.html
 
 # ── Démarrer nginx ──
 systemctl start nginx

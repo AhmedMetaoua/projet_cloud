@@ -32,59 +32,74 @@ let dbReady = Promise.resolve();
 
 function initializeDatabase() {
   const mysql = require('mysql2');
-  db = mysql.createConnection({
-    host: process.env.DB_HOST || 'database1.colpdmacwjni.us-east-1.rds.amazonaws.com',
-    user: process.env.DB_USER || 'admin',
-    password: process.env.DB_PASSWORD || process.env.DB_PASS || 'admin123',
-    database: process.env.DB_NAME || 'database3'
-  });
+  const maxRetries = 30;
+  let retries = 0;
 
-  const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS users (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      email VARCHAR(100) NOT NULL UNIQUE,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );
-  `;
+  const attemptConnection = () => {
+    db = mysql.createConnection({
+      host: process.env.DB_HOST || 'database1.colpdmacwjni.us-east-1.rds.amazonaws.com',
+      user: process.env.DB_USER || 'admin',
+      password: process.env.DB_PASSWORD || process.env.DB_PASS || 'admin123',
+      database: process.env.DB_NAME || 'database3'
+    });
 
-  const insertUsersQuery = `
-    INSERT IGNORE INTO users (name, email) VALUES
-    ('John Doe', 'john@example.com'),
-    ('Jane Smith', 'jane@example.com'),
-    ('Bob Johnson', 'bob@example.com');
-  `;
+    const createTableQuery = `
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `;
 
-  return new Promise((resolve, reject) => {
-    db.connect((connectError) => {
-      if (connectError) {
-        console.error('Error connecting to the database:', connectError);
-        reject(connectError);
-        return;
-      }
+    const insertUsersQuery = `
+      INSERT IGNORE INTO users (name, email) VALUES
+      ('John Doe', 'john@example.com'),
+      ('Jane Smith', 'jane@example.com'),
+      ('Bob Johnson', 'bob@example.com');
+    `;
 
-      console.log('Connected to MySQL database');
-
-      db.query(createTableQuery, (createError) => {
-        if (createError) {
-          console.error('Error creating table:', createError);
-          reject(createError);
+    return new Promise((resolve, reject) => {
+      db.connect((connectError) => {
+        if (connectError) {
+          if (retries < maxRetries) {
+            retries++;
+            console.log(`Database connection failed (attempt ${retries}/${maxRetries}), retrying in 2 seconds...`);
+            setTimeout(() => {
+              attemptConnection().then(resolve).catch(reject);
+            }, 2000);
+            return;
+          }
+          console.error('Error connecting to the database after retries:', connectError);
+          reject(connectError);
           return;
         }
 
-        db.query(insertUsersQuery, (insertError) => {
-          if (insertError) {
-            console.error('Error inserting users:', insertError);
-            reject(insertError);
+        console.log('Connected to MySQL database');
+
+        db.query(createTableQuery, (createError) => {
+          if (createError) {
+            console.error('Error creating table:', createError);
+            reject(createError);
             return;
           }
 
-          console.log('Users table is ready');
-          resolve();
+          db.query(insertUsersQuery, (insertError) => {
+            if (insertError) {
+              console.error('Error inserting users:', insertError);
+              reject(insertError);
+              return;
+            }
+
+            console.log('Users table is ready');
+            resolve();
+          });
         });
       });
     });
-  });
+  };
+
+  return attemptConnection();
 }
 
 async function initializeJsonStorage() {
@@ -321,7 +336,15 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  // Simple liveness probe - app is running
+  if (useJsonStorage) {
+    res.status(200).json({ status: 'ok', mode: 'json-storage' });
+  } else if (dbReady) {
+    // Return 200 if database is ready, but don't wait for it
+    res.status(200).json({ status: 'ok', mode: 'mysql' });
+  } else {
+    res.status(503).json({ status: 'initializing', mode: 'mysql' });
+  }
 });
 
 app.get('/api/users', async (req, res) => {

@@ -13,9 +13,24 @@ export interface User {
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = 'http://localhost:3000/api/users';
+  private apiUrl: string;
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient) {
+    // Get base URL from window location or fallback
+    const protocol = window.location.protocol;
+    const host = window.location.host;
+    const apiHost = this.getApiHost();
+    this.apiUrl = `${protocol}//${apiHost}/api/users`;
+  }
+
+  private getApiHost(): string {
+    // In production, ALB DNS is injected via window.API_HOST
+    if (typeof (window as any).API_HOST !== 'undefined') {
+      return (window as any).API_HOST;
+    }
+    // Fallback to localhost for development
+    return 'localhost:3000';
+  }
 
   getUsers(): Observable<User[]> {
     return this.http.get<User[]>(this.apiUrl);
