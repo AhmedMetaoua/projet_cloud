@@ -23,22 +23,22 @@ CLONE_SUCCESS=false
 for i in {1..3}; do
   if git clone ${github_repo} frontend-app --depth 1 2>&1; then
     CLONE_SUCCESS=true
-    echo "Git clone succeeded on attempt $$i"
+    echo "Git clone succeeded on attempt $i"
     break
   else
-    echo "Git clone failed on attempt $$i, retrying..."
+    echo "Git clone failed on attempt $i, retrying..."
     sleep 5
   fi
 done
 
 # ── Fallback: Download as ZIP if git fails ──
-if [ "$$CLONE_SUCCESS" = false ]; then
+if [ "$CLONE_SUCCESS" = false ]; then
   echo "Git clone failed, attempting ZIP download..."
   # Convert git URL to ZIP download URL
-  REPO_ZIP=$$(echo "${github_repo}" | sed 's|.git$$||' | sed 's|git@github.com:|https://github.com/|')
-  REPO_ZIP="$${REPO_ZIP}/archive/refs/heads/main.zip"
+  REPO_ZIP=$(echo "${github_repo}" | sed 's|.git$||' | sed 's|git@github.com:|https://github.com/|')
+  REPO_ZIP="$REPO_ZIP/archive/refs/heads/main.zip"
   
-  if wget -q "$$REPO_ZIP" -O /tmp/repo.zip && unzip -q /tmp/repo.zip -d /tmp/ 2>/dev/null; then
+  if wget -q "$REPO_ZIP" -O /tmp/repo.zip && unzip -q /tmp/repo.zip -d /tmp/ 2>/dev/null; then
     mv /tmp/projet_cloud-main /tmp/frontend-app 2>/dev/null || mv /tmp/projet_cloud-* /tmp/frontend-app
     echo "ZIP download succeeded"
     CLONE_SUCCESS=true
@@ -48,7 +48,7 @@ if [ "$$CLONE_SUCCESS" = false ]; then
 fi
 
 # ── Build Angular if repository was obtained ──
-if [ "$$CLONE_SUCCESS" = true ] && [ -f "/tmp/frontend-app/client/package.json" ]; then
+if [ "$CLONE_SUCCESS" = true ] && [ -f "/tmp/frontend-app/client/package.json" ]; then
   echo "Building Angular application..."
   cd /tmp/frontend-app/client
   
