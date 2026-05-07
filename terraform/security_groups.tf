@@ -130,11 +130,11 @@ resource "aws_security_group" "frontend" {
   }
 
   ingress {
-    description = "SSH from my IP"
+    description = "SSH from anywhere (temporary - for debugging)"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.my_ip]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
