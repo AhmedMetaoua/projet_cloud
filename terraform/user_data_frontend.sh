@@ -36,7 +36,7 @@ if [ "$CLONE_SUCCESS" = false ]; then
   echo "Git clone failed, attempting ZIP download..."
   # Convert git URL to ZIP download URL
   REPO_ZIP=$(echo "${github_repo}" | sed 's|.git$||' | sed 's|git@github.com:|https://github.com/|')
-  REPO_ZIP="${REPO_ZIP}/archive/refs/heads/main.zip"
+  REPO_ZIP="$REPO_ZIP/archive/refs/heads/main.zip"
   
   if wget -q "$REPO_ZIP" -O /tmp/repo.zip && unzip -q /tmp/repo.zip -d /tmp/ 2>/dev/null; then
     mv /tmp/projet_cloud-main /tmp/frontend-app 2>/dev/null || mv /tmp/projet_cloud-* /tmp/frontend-app
@@ -59,15 +59,18 @@ if [ "$CLONE_SUCCESS" = true ] && [ -f "/tmp/frontend-app/client/package.json" ]
       # Deploy to nginx
       echo "Deploying to nginx..."
       rm -rf /var/www/html/*
-      cp -r dist/client/browser/* /var/www/html/
       
-      # Create config with ALB DNS
-      cat > /var/www/html/config.js <<CFGEOF
-window.API_HOST = '${alb_dns_name}';
-CFGEOF
-      
-      # Inject into index.html
-      sed -i '/<head>/a\  <script src="/config.js"><\/script>' /var/www/html/index.html
+      # Handle both old and new Angular build output structures
+      if [ -d "dist/client/browser" ]; then
+        cp -r dist/client/browser/* /var/www/html/
+      elif [ -d "dist/client" ]; then
+        cp -r dist/client/* /var/www/html/
+      else
+        echo "ERROR: Angular build output not found at expected location"
+        echo "Contents of dist/:"
+        ls -la dist/
+        exit 1
+      fi
       
       echo "Angular app deployed successfully"
     else
@@ -76,6 +79,51 @@ CFGEOF
   else
     echo "npm install failed"
   fi
+fi
+
+# ── Configure nginx for Angular SPA ──
+echo "Configuring nginx for Single Page Application..."
+cat > /etc/nginx/sites-available/default <<'NGINXEOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root /var/www/html;
+    index index.html index.htm;
+
+    server_name _;
+
+    # SPA routing: serve index.html for all non-file requests
+    location / {
+        try_files $$uri $$uri/ /index.html;
+    }
+
+    # Cache-busting for versioned assets (with content hash)
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot)$$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Don't cache index.html
+    location = /index.html {
+        expires -1;
+        add_header Cache-Control "public, must-revalidate, proxy-revalidate, max-age=0";
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+    }
+}
+NGINXEOF
+
+# ── Test and apply nginx configuration ──
+echo "Testing nginx configuration..."
+if nginx -t 2>&1; then
+  echo "Nginx configuration is valid"
+else
+  echo "ERROR: Nginx configuration test failed!"
+  exit 1
 fi
 
 # ── Ensure nginx directory has content ──
@@ -87,29 +135,42 @@ if [ ! -f "/var/www/html/index.html" ]; then
 <html>
 <head>
   <title>Frontend Deployment</title>
-  <script src="/config.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 40px; background: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #333; }
+    .info { color: #666; font-size: 14px; }
+  </style>
 </head>
 <body>
-  <h1>Frontend is deploying...</h1>
-  <p>API Host: <span id="api-host">Loading...</span></p>
+  <div class="container">
+    <h1>Frontend Deployment In Progress</h1>
+    <p class="info">Your Angular application is being built and deployed.</p>
+    <p class="info">If you see this page after 5+ minutes, check the deployment logs.</p>
+    <hr/>
+    <h3>Debug Information:</h3>
+    <pre id="debug" style="background: #f0f0f0; padding: 10px; border-radius: 4px;"></pre>
+  </div>
   <script>
-    document.getElementById('api-host').textContent = window.API_HOST || 'Not configured';
+    document.getElementById('debug').textContent = 
+      'Hostname: ' + window.location.hostname + '\n' +
+      'Time: ' + new Date().toISOString() + '\n' +
+      'User Agent: ' + navigator.userAgent;
   </script>
 </body>
 </html>
 PLACEOF
-  
-  # Create config
-  cat > /var/www/html/config.js <<CFGEOF
-window.API_HOST = '${alb_dns_name}';
-CFGEOF
 fi
 
-# ── Start nginx ──
-echo "Starting nginx..."
+# ── Start/restart nginx ──
+echo "Starting nginx service..."
 systemctl start nginx
 systemctl enable nginx
+systemctl reload nginx
 
 echo "=== Frontend deployment script completed ==="
+echo "Nginx is $(systemctl is-active nginx)"
+echo "HTML directory contents:"
 ls -lah /var/www/html/ 2>&1
-curl -I http://localhost/ 2>&1 || true
+echo "Testing local connection:"
+curl -I http://localhost/ 2>&1 || echo "Local curl test failed"
